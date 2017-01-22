@@ -8,6 +8,9 @@ sourced from [here](http://apps.timwhitlock.info/emoji/tables/unicode)
 $ opam install emoji
 ```
 
+You can see them by printing to the screen, 
+ie: `print_endline Emoji.smiling_cat_face_with_open_mouth`
+
 # Development 
 
 Here's the code that generates the `emoji.ml` file
