@@ -1,0 +1,15 @@
+*.o
+*.cmi
+*.cmt
+*.cmx
+*.cmxa
+*.a
+_build
+*.txt
+*.data
+*.log
+*.native
+api.docdir
+*.markdown
+_tests/*
+testapi.c

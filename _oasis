@@ -1,0 +1,24 @@
+# -*- conf -*-
+OASISFormat:   0.4
+Name:          emoji
+Version:       1.0.0
+Synopsis:      Use emojis
+Authors:       Edgar Aroutiounian <edgar.factorial@gmail.com>
+Maintainers:   Edgar Aroutiounian <edgar.factorial@gmail.com>
+Homepage:      https://github.com/fxfactorial/ocaml-emoji
+License:       BSD-3-clause
+OCamlVersion:  >= 4.04.0
+AlphaFeatures: ocamlbuild_more_args
+Plugins:       META (0.4), DevFiles (0.4)
+BuildTools:    ocamlbuild, ocamldoc
+Description:   Names to byte code sequences for common emojis
+
+Library emoji
+  Path: lib
+  Modules: Emoji
+  install: true
+
+SourceRepository master
+  Type:     git
+  Location: https://github.com/fxfactorial/ocaml-emoji.git
+  Browser:  https://github.com/fxfactorial/ocaml-emoji
