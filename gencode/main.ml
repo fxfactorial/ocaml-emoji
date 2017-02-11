@@ -2,6 +2,28 @@
 
 open Lwt.Infix
 
+type emoji = {
+  code_point  : string;
+  emoji       : string;
+  bytes       : string;
+  name        : string;
+  description : string;
+}
+
+let rec emojis_list codes emojis bytes lets descs =
+  if List.length codes = List.length emojis &&
+     List.length emojis = List.length bytes &&
+     List.length bytes = List.length lets &&
+     List.length lets = List.length descs
+  then if List.length codes = 0
+    then []
+    else { code_point = List.hd codes; emoji = List.hd emojis;
+           bytes = List.hd bytes; name = List.hd lets;
+           description = List.hd descs; }
+          :: (emojis_list (List.tl codes) (List.tl emojis) (List.tl bytes)
+                          (List.tl lets) (List.tl descs))
+  else raise (Invalid_argument "Lists must be of the same length")
+
 module Bytes = struct
   include Bytes
   let map_to_list (f : char -> 'b) (s :bytes) =
@@ -85,31 +107,41 @@ let program =
     l |> List.map (fun l -> l |> Soup.trimmed_texts |> String.concat "")
   in
 
-  let emoji_chars = Soup.select "tbody > tr > td.andr > a > img" parsed
-                   |> Soup.to_list |> List.map (fun el ->
-                       Soup.attribute "alt" el |> fun (Some x) -> x
-                       |> Bytes.of_string |> Bytes.map_to_list hex_escape_sequence
-                       |> String.concat "")
-  in
-  let descriptions = Soup.select "tbody > tr > td.name" parsed in
-
-  let let_names =
-    (Soup.to_list descriptions |> just_innards)
-    |> List.map identifier_of_description
+  let emojis = Soup.select "tbody > tr > td.andr > a > img" parsed
+               |> Soup.to_list
+               |> List.map (fun el ->
+                   Soup.attribute "alt" el |> fun (Some x) -> x)
   in
 
-  let zipped =
-    List.combine
-      let_names
-      emoji_chars
+  let emoji_bytes = emojis |> List.map (fun el -> Bytes.of_string el
+                    |> Bytes.map_to_list hex_escape_sequence
+                    |> String.concat "")
+  in
+
+  let descriptions = Soup.select "tbody > tr > td.name" parsed
+                     |> Soup.to_list |> just_innards in
+
+  let let_names = List.map identifier_of_description descriptions
+  in
+
+  let code_points = Soup.select "tbody > tr > td.code > a" parsed
+                    |> Soup.to_list |> just_innards
+  in
+
+  let zipped = emojis_list code_points emojis emoji_bytes let_names descriptions
   in
   Lwt_io.open_file ~mode:Lwt_io.Output "lib/emoji.ml" >>= fun output ->
-  zipped |> Lwt_list.iter_s (fun (name, bytes) ->
-      Printf.sprintf "let %s = \"%s\"" name bytes
-      |> Lwt_io.write_line output
+    Printf.sprintf "(** All Emojis defined by the \
+    Unicode standard, encoded using UTF-8 *)\n" |> Lwt_io.write_line output
+    >>= fun () ->
+      zipped |> Lwt_list.iter_s (fun e ->
+        Printf.sprintf "(** %s [%s]: %s *)\nlet %s = \"%s\"\n"
+        e.code_point e.emoji e.description e.name e.bytes
+               |> Lwt_io.write_line output
     ) >>= fun () ->
-  Printf.sprintf "let all_emojis = [%s]" (String.concat ";" let_names)
-  |> Lwt_io.write_line output
+      Printf.sprintf "(** All included emojis in a list *)\n\
+      let all_emojis = [%s]" (String.concat ";" let_names)
+               |> Lwt_io.write_line output
 
 let () =
   Lwt_main.run program
