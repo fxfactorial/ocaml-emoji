@@ -18,6 +18,13 @@ Library emoji
   Modules: Emoji
   install: true
 
+Document "emoji_doc"
+  Type: ocamlbuild (0.4)
+  BuildTools: ocamldoc
+  Title: Documentation for the OCaml Emoji library
+  XOCamlbuildPath: .
+  XOcamlbuildLibraries: emoji
+
 SourceRepository master
   Type:     git
   Location: https://github.com/fxfactorial/ocaml-emoji.git
