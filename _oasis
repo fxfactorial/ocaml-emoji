@@ -14,16 +14,20 @@ BuildTools:    ocamlbuild, ocamldoc
 Description:   Names to byte code sequences for common emojis
 
 Library emoji
-  Path: lib
+  Path:    lib
   Modules: Emoji
   install: true
 
-Document "emoji_doc"
-  Type: ocamlbuild (0.4)
-  BuildTools: ocamldoc
-  Title: Documentation for the OCaml Emoji library
-  XOCamlbuildPath: .
-  XOcamlbuildLibraries: emoji
+Document api
+  Type:                 ocamlbuild (0.4)
+  BuildTools:           ocamldoc
+  Title:                Documentation for the OCaml Emoji library
+  XOcamlbuildModules:   lib/Emoji
+  XOCamlbuildPath:      docs
+  Install:              true
+  InstallDir:           $htmldir/emoji
+  PostCommand:          cp docs/style.css api.docdir/
+  XOCamlbuildExtraArgs: "-docflags '-colorize-code -charset utf-8'"
 
 SourceRepository master
   Type:     git
