@@ -131,8 +131,8 @@ let program =
     Unicode standard, encoded using UTF-8 *)\n" |> Lwt_io.write_line output
     >>= fun () ->
       zipped |> Lwt_list.iter_s (fun e ->
-        Printf.sprintf "(** %s [%s]: %s *)\nlet %s = \"%s\"\n"
-        e.code_point e.emoji e.description
+        Printf.sprintf "(** %s (%s): %s *)\nlet %s = \"%s\"\n"
+        e.emoji e.code_point e.description
         (identifier_of_description e.description) (emoji_bytes e.emoji)
                |> Lwt_io.write_line output
     ) >>= fun () ->
