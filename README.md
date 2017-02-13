@@ -9,7 +9,11 @@ $ opam install emoji
 ```
 
 You can see them by printing to the screen, 
-ie: `print_endline Emoji.smiling_cat_face_with_open_mouth`
+ie: `print_endline Emoji.man_facepalming`
+
+And using `ocp-browser` shows the emoji
+
+![](./ocp-browser-emoji.png)
 
 # Development 
 
@@ -19,7 +23,8 @@ First of all pin the package:
 $ opam pin add emoji /path/to/local/checkout/of/emoji
 ```
 
-To update the `lib/emoji.ml` this [code](./gencode/main.ml) is used. Don't forget to run before (re-)installing!
+To update the `lib/emoji.ml` this [code](./gencode/main.ml) is
+used. Don't forget to run before (re-)installing!
 
 This simple sanity test lets you review your changes:
 
@@ -35,5 +40,4 @@ let () =
 ```
 
 Which for me resulted in:
-
 ![](./emojis.png)

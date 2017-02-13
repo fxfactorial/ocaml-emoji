@@ -1,7 +1,7 @@
 # -*- conf -*-
 OASISFormat:   0.4
 Name:          emoji
-Version:       1.0.0
+Version:       1.1.0
 Synopsis:      Use emojis
 Authors:       Edgar Aroutiounian <edgar.factorial@gmail.com>
 Maintainers:   Edgar Aroutiounian <edgar.factorial@gmail.com>
