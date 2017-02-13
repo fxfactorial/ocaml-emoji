@@ -26,7 +26,7 @@ Document api
   XOCamlbuildPath:      docs
   Install:              true
   InstallDir:           $htmldir/emoji
-  PostCommand:          cp docs/style.css api.docdir/
+  PostCommand:          cp docs/style.css api.docdir/ && cp api.docdir/* docs
   XOCamlbuildExtraArgs: "-docflags '-colorize-code -charset utf-8'"
 
 SourceRepository master
