@@ -1,7 +1,8 @@
 Use emojis by name
 
-Names for byte code sequences of common emojis
+Names for byte code sequences of 2389 emojis
 
+```ocaml
 #require "emoji";;
 
 let () =
@@ -10,4 +11,6 @@ let () =
     if (i mod 80 = 0) then print_newline ();
     print_string ar.(i);
   done;
-  print_endline Emoji.dromedary_camel
+  print_endline Emoji.camel;
+  print_endline Emoji.two_hump_camel
+```
