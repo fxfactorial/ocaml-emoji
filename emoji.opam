@@ -1,0 +1,28 @@
+opam-version: "2.0"
+maintainer: "Edgar Aroutiounian <edgar.factorial@gmail.com>"
+authors: "Edgar Aroutiounian <edgar.factorial@gmail.com>"
+homepage: "https://github.com/fxfactorial/ocaml-emoji"
+bug-reports: "https://github.com/fxfactorial/ocaml-emoji/issues"
+license: "BSD-3-clause"
+dev-repo: "git+https://github.com/fxfactorial/ocaml-emoji.git"
+build: ["dune" "build" "-p" name "-j" jobs]
+depends: [
+  "ocaml" {>= "4.04.0"}
+  "dune" {build & >= "1.11.0"}
+]
+synopsis: "Use emojis by name"
+description: """
+Names for byte code sequences of 2389 emojis
+
+```ocaml
+#require "emoji";;
+
+let () =
+  let ar = Emoji.all_emojis |> Array.of_list in
+  for i = 0 to Array.length ar - 1 do
+    if (i mod 80 = 0) then print_newline ();
+    print_string ar.(i);
+  done;
+  print_endline Emoji.camel;
+  print_endline Emoji.two_hump_camel
+```"""
