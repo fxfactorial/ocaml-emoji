@@ -1,5 +1,3 @@
-#require "lwt.unix,cohttp.lwt,lambdasoup,uutf";;
-
 open Lwt.Infix
 
 type emoji = {
@@ -23,15 +21,15 @@ let rec emojis_list codes emojis descs names =
 
 module Bytes = struct
   include Bytes
-  let map_to_list (f : char -> 'b) (s :bytes) =
+  let map_to_list (f : char -> 'b) (s : t) =
     let rec map_tail_reverse f s i acc =
       if i >= 0
-    then map_tail_reverse f s (i - 1) (f s.[i] :: acc)
+    then map_tail_reverse f s (i - 1) (f (Bytes.get s i) :: acc)
     else acc
-    in map_tail_reverse f s (String.length s - 1) []
+    in map_tail_reverse f s (Bytes.length s - 1) []
 end
 
-let rec hex_escape_sequence c =
+let hex_escape_sequence c =
   let nibble_to_hex_char n = match n with
     | n when n >= 0  && n < 10 -> Char.chr (Char.code '0' + n)
     | n when n >= 10 && n < 16 -> Char.chr (Char.code 'a' + (n - 10))
@@ -55,7 +53,7 @@ let wrap_leading_ints s =
   then String.concat "" ["_"; s]
   else s
 
-let rec to_legal_ident_char c =
+let to_legal_ident_char c =
   let uint c = Uchar.of_char c |> Uchar.to_int in
   match (Uchar.to_int c) with
   | i when i = (uint '&') -> "and"
@@ -67,8 +65,8 @@ let rec to_legal_ident_char c =
     -> String.make 1 (Char.lowercase_ascii (Uchar.to_char c))
   | _ -> "_"
 
-let rec deduplicate_underscores s =
-  let drop n s = String.sub s 1 (String.length s - 1) in
+let deduplicate_underscores s =
+  let drop _ s = String.sub s 1 (String.length s - 1) in
   let rec dedup lastwas s =
     if String.length s == 0 then ""
     else let c = String.get s 0 in
@@ -100,7 +98,7 @@ let program =
   Cohttp_lwt_unix.Client.get
     ("http://www.unicode.org/emoji/charts/emoji-list.html"
      |> Uri.of_string) >>= fun (_, body) ->
-  Cohttp_lwt_body.to_string body >>= fun html ->
+  Cohttp_lwt__Body.to_string body >>= fun html ->
 
   let parsed = Soup.parse html in
 
@@ -111,7 +109,7 @@ let program =
   let emojis = Soup.select "tbody > tr > td.andr > a > img" parsed
                |> Soup.to_list
                |> List.map (fun el ->
-                   Soup.attribute "alt" el |> fun (Some x) -> x)
+                   Soup.attribute "alt" el |> (function | Some x -> x | None -> assert false))
   in
 
   let descriptions = Soup.select "tbody > tr > td.name" parsed

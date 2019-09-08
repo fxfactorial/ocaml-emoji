@@ -13,3 +13,4 @@ api.docdir
 *.markdown
 _tests/*
 testapi.c
+*.merlin
