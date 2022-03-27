@@ -1,3 +1,0 @@
-(executable
-  (name main)
-  (libraries emoji lwt uutf cohttp-lwt-unix lambdasoup))
