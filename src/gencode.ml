@@ -124,7 +124,7 @@ let program =
   let let_names = List.map identifier_of_description descriptions in
   let zipped = emojis_list code_points emojis descriptions let_names in
 
-  Lwt_io.open_file ~mode:Lwt_io.Output "lib/emoji.ml" >>= fun output ->
+  Lwt_io.open_file ~mode:Lwt_io.Output "emoji.ml" >>= fun output ->
     Printf.sprintf "(** All Emojis defined by the \
     Unicode standard, encoded using UTF-8 *)\n" |> Lwt_io.write_line output
     >>= fun () ->

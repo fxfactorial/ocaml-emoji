@@ -1,0 +1,14 @@
+(executable
+ (name gencode)
+ (modules gencode)
+ (libraries lwt uutf cohttp-lwt-unix lambdasoup))
+
+(library
+ (modules emoji)
+ (public_name emoji))
+
+(rule
+ (target emoji.ml)
+ (deps gencode.exe)
+ (action
+  (run ./gencode.exe)))
