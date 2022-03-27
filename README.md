@@ -2,7 +2,7 @@ emojis
 ------
 
 Single OCaml file containing byte sequences for common `emojis`
-sourced from [here](http://apps.timwhitlock.info/emoji/tables/unicode)
+sourced from [here](http://www.unicode.org/emoji/charts/emoji-list.html)
 
 ```
 $ opam install emoji
