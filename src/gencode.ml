@@ -34,10 +34,7 @@ let string_escape_hex =
 (* leading ints are illegal in
  * OCaml identifiers so we prepend
  * them with a '_' *)
-let wrap_leading_ints s =
-  let i = Char.code (String.get s 0) in
-  if i >= Char.code '0' && i <= Char.code '9' then String.concat "" [ "_"; s ]
-  else s
+let wrap_leading_ints s = match s.[0] with '0' .. '9' -> "_" ^ s | _ -> s
 
 let to_legal_ident_char c =
   if not (Uchar.is_char c) then
@@ -45,35 +42,25 @@ let to_legal_ident_char c =
     "_"
   else
     let uint c = Uchar.of_char c |> Uchar.to_int in
-    match Uchar.to_int c with
-    | i when i = uint '&' -> "and"
-    | i when i = uint '#' -> "hash"
-    | i when i = uint '*' -> "star"
-    | i when i = uint '-' -> "_"
-    | i when i = uint ' ' -> "_"
-    | i when i = uint ':' -> "_"
-    | i when i = uint '.' -> "_"
-    | i when i = uint ',' -> "_"
-    | i when i = uint '!' -> "" (* only used for ON! arrow and UP! button *)
-    | i when i = uint '(' -> "_"
-    | i when i = uint ')' -> "_"
-    | 197 -> "a" (* Å *)
-    | 227 -> "a" (* ã *)
-    | 231 -> "c" (* ç *)
-    | 233 -> "e" (* é *)
-    | 237 -> "i" (* í *)
-    | 241 -> "n" (* piñata !*)
-    | 244 -> "o" (* ô *)
-    | i when (i = uint '_' || i = uint '\'') || (i >= uint '0' && i <= uint '9')
-      ->
-      String.make 1 (Uchar.to_char c)
-    | i when (i >= uint 'A' && i <= uint 'Z') || (i >= uint 'a' && i <= uint 'z')
-      ->
-      String.make 1 (Char.lowercase_ascii (Uchar.to_char c))
-    | other ->
-      failwith
-        (Printf.sprintf "unhandled character: '%c'"
-           (other |> Uchar.of_int |> Uchar.to_char) )
+    match Uchar.to_char c with
+    | '&' -> "and"
+    | '#' -> "hash"
+    | '*' -> "star"
+    | '-' | ' ' | ':' | '.' | ',' | '(' | ')' -> "_"
+    | '!' ->
+      (*TODO: use "_" and merge with previous case ? *)
+      (* only used for ON! arrow and UP! button *)
+      ""
+    | '\197' -> "a" (* Å *)
+    | '\227' -> "a" (* ã *)
+    | '\231' -> "c" (* ç *)
+    | '\233' -> "e" (* é *)
+    | '\237' -> "i" (* í *)
+    | '\241' -> "n" (* piñata !*)
+    | '\244' -> "o" (* ô *)
+    | ('_' | '\'' | '0' .. '9') as c -> String.make 1 c
+    | ('A' .. 'Z' | 'a' .. 'z') as c -> String.make 1 (Char.lowercase_ascii c)
+    | c -> failwith (Format.sprintf "unhandled character: '%c'" c)
 
 let deduplicate_underscores s =
   let drop _ s = String.sub s 1 (String.length s - 1) in
