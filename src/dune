@@ -11,4 +11,6 @@
  (target emoji.ml)
  (deps gencode.exe)
  (action
-  (run ./gencode.exe)))
+  (with-stdout-to
+   emoji.ml
+   (run ./gencode.exe))))

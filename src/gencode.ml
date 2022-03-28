@@ -144,7 +144,14 @@ let parse_row (l, category, sub_category) el =
         | Some el -> just_innard el
       in
 
-      ( { code_point; emoji; description; name; category; sub_category } :: l
+      ( { code_point
+        ; emoji
+        ; description
+        ; name
+        ; category = "category_" ^ category
+        ; sub_category = "sub_category_" ^ sub_category
+        }
+        :: l
       , category
       , sub_category ) )
 
@@ -154,18 +161,67 @@ let program =
   >>= fun (_, body) ->
   Cohttp_lwt__Body.to_string body >>= fun html ->
   let parsed = Soup.parse html in
-  let table =
-    Soup.siblings @@ Option.get @@ Soup.select_one "tbody > tr" parsed
-  in
+  let table = Soup.children @@ Option.get @@ Soup.select_one "tbody" parsed in
   let init = ([], "", "") in
   let emojis, _last_category, _last_sub_category =
     Soup.fold parse_row init table
   in
   let emojis = List.rev emojis in
 
+  let tbl = Hashtbl.create 512 in
+  List.iter
+    (fun emoji ->
+      match Hashtbl.find_opt tbl emoji.category with
+      | None ->
+        let sub_cat_tbl = Hashtbl.create 512 in
+        let emoji_tbl = Hashtbl.create 512 in
+        Hashtbl.add emoji_tbl emoji.name ();
+        Hashtbl.add sub_cat_tbl emoji.sub_category emoji_tbl;
+        Hashtbl.add tbl emoji.category sub_cat_tbl
+      | Some sub_cat_tbl -> (
+        match Hashtbl.find_opt sub_cat_tbl emoji.sub_category with
+        | None ->
+          let emoji_tbl = Hashtbl.create 512 in
+          Hashtbl.add emoji_tbl emoji.name ();
+          Hashtbl.add sub_cat_tbl emoji.sub_category emoji_tbl
+        | Some emoji_tbl -> Hashtbl.add emoji_tbl emoji.name () ) )
+    emojis;
+
+  let cat_emojis_list =
+    Hashtbl.fold
+      (fun category sub_cat_tbl acc ->
+        let emojis =
+          Hashtbl.fold
+            (fun _sub_cat emojis acc ->
+              let emojis_list =
+                Hashtbl.fold (fun emoji () acc -> emoji :: acc) emojis []
+              in
+              emojis_list @ acc )
+            sub_cat_tbl []
+        in
+        (category, emojis) :: acc )
+      tbl []
+  in
+
+  let sub_cat_emojis_list =
+    Hashtbl.fold
+      (fun _category sub_cat_tbl acc ->
+        let sub_categories =
+          Hashtbl.fold
+            (fun sub_cat emojis acc ->
+              let emojis_list =
+                Hashtbl.fold (fun emoji () acc -> emoji :: acc) emojis []
+              in
+              (sub_cat, emojis_list) :: acc )
+            sub_cat_tbl []
+        in
+        sub_categories @ acc )
+      tbl []
+  in
+
   let all_names = List.map (fun emoji -> emoji.name) emojis in
 
-  Lwt_io.open_file ~mode:Lwt_io.Output "emoji.ml" >>= fun output ->
+  Lwt_io.stdout |> fun output ->
   Printf.sprintf
     "(** All Emojis defined by the Unicode standard, encoded using UTF-8 *)\n"
   |> Lwt_io.write_line output
@@ -178,7 +234,18 @@ let program =
            (emoji_bytes e.emoji)
          |> Lwt_io.write_line output )
   >>= fun () ->
-  Printf.sprintf "(** All included emojis in a list *)\nlet all_emojis = [%s]"
+  sub_cat_emojis_list
+  |> Lwt_list.iter_s (fun (sub_cat, emojis) ->
+         Printf.sprintf "\nlet %s = [|%s|]" sub_cat (String.concat ";" emojis)
+         |> Lwt_io.write_line output )
+  >>= fun () ->
+  cat_emojis_list
+  |> Lwt_list.iter_s (fun (cat, emojis) ->
+         Printf.sprintf "\nlet %s = [|%s|]" cat (String.concat ";" emojis)
+         |> Lwt_io.write_line output )
+  >>= fun () ->
+  Printf.sprintf
+    "(** All included emojis in an array *)\nlet all_emojis = [|%s|]"
     (String.concat ";" all_names)
   |> Lwt_io.write_line output
 
