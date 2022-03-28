@@ -9,34 +9,27 @@ type emoji =
   ; sub_category : string
   }
 
-module Bytes = struct
-  include Bytes
-
-  let map_to_list (f : char -> 'b) (s : t) =
-    let rec map_tail_reverse f s i acc =
-      if i >= 0 then map_tail_reverse f s (i - 1) (f (Bytes.get s i) :: acc)
-      else acc
-    in
-    map_tail_reverse f s (Bytes.length s - 1) []
-end
-
-let hex_escape_sequence c =
+let string_escape_hex =
+  let fst_code = Char.code '0' in
+  let snd_code = Char.code 'a' - 10 in
   let nibble_to_hex_char n =
-    match n with
-    | n when n >= 0 && n < 10 -> Char.chr (Char.code '0' + n)
-    | n when n >= 10 && n < 16 -> Char.chr (Char.code 'a' + (n - 10))
-    | _ ->
-      raise (Invalid_argument "Nibbles must be within the range of 0x0 and 0xf")
+    if n < 0 || n >= 16 then
+      invalid_arg "nibbles must be within the range 0x0 and 0xf"
+    else if n < 10 then Char.chr (fst_code + n)
+    else Char.chr (snd_code + n)
   in
-  let i = Char.code c in
-  let n1 = (i land 0xf0) lsr 4 in
-  let n2 = i land 0x0f in
-  let initfun = function
-    | 0 -> nibble_to_hex_char n1
-    | 1 -> nibble_to_hex_char n2
-    | _ -> raise (Invalid_argument "Only indices between 0 and 1 are allowed")
-  in
-  String.concat "" [ "\\x"; String.init 2 initfun ]
+  fun s ->
+    let buf = Buffer.create (String.length s) in
+    String.iter
+      (fun c ->
+        let c = Char.code c in
+        Buffer.add_string buf "\\x";
+        let n = (c land 0xf0) lsr 4 in
+        Buffer.add_char buf (nibble_to_hex_char n);
+        let n = c land 0x0f in
+        Buffer.add_char buf (nibble_to_hex_char n) )
+      s;
+    Buffer.contents buf
 
 (* leading ints are illegal in
  * OCaml identifiers so we prepend
@@ -110,11 +103,6 @@ let identifier_of_description s =
   let s = wrap_leading_ints s in
   let s = deduplicate_underscores s in
   s
-
-let emoji_bytes el =
-  Bytes.of_string el
-  |> Bytes.map_to_list hex_escape_sequence
-  |> String.concat ""
 
 let just_innard s = s |> Soup.trimmed_texts |> String.concat ""
 
@@ -257,7 +245,7 @@ let program =
       Printf.printf "\n(** %s (%s): %s *)\nlet %s = \"%s\"\n" e.emoji
         e.code_point e.description
         (identifier_of_description e.description)
-        (emoji_bytes e.emoji) )
+        (string_escape_hex e.emoji) )
     emojis;
   List.iter
     (fun (sub_cat, emojis) ->
