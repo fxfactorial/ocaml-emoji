@@ -41,7 +41,6 @@ let to_legal_ident_char c =
     (* not a latin1 character, ex: quotation mark (U+2019) in names *)
     "_"
   else
-    let uint c = Uchar.of_char c |> Uchar.to_int in
     match Uchar.to_char c with
     | '&' -> "and"
     | '#' -> "hash"
@@ -63,17 +62,16 @@ let to_legal_ident_char c =
     | c -> failwith (Format.sprintf "unhandled character: '%c'" c)
 
 let deduplicate_underscores s =
-  let drop _ s = String.sub s 1 (String.length s - 1) in
-  let rec dedup lastwas s =
-    if String.length s == 0 then ""
-    else
-      let c = String.get s 0 in
-      if c == '_' then
-        if lastwas then dedup true (drop 1 s)
-        else String.concat "" [ "_"; dedup true (drop 1 s) ]
-      else String.concat "" [ String.make 1 c; dedup false (drop 1 s) ]
+  let buf = Buffer.create (String.length s) in
+  let _was_underscore : bool =
+    String.fold_left
+      (fun was_underscore c ->
+        let is_underscore = c = '_' in
+        if not (was_underscore && is_underscore) then Buffer.add_char buf c;
+        is_underscore )
+      false s
   in
-  dedup false s
+  Buffer.contents buf
 
 let identifier_of_description s =
   let decoder = Uutf.decoder ~encoding:`UTF_8 (`String s) in
