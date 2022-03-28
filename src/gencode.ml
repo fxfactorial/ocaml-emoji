@@ -1,4 +1,4 @@
-open Lwt.Infix
+open Lwt.Syntax
 
 type emoji =
   { code_point : string
@@ -47,16 +47,40 @@ let wrap_leading_ints s =
   else s
 
 let to_legal_ident_char c =
-  let uint c = Uchar.of_char c |> Uchar.to_int in
-  match Uchar.to_int c with
-  | i when i = uint '&' -> "and"
-  | i when (i = uint '_' || i = uint '\'') || (i >= uint '0' && i <= uint '9')
-    ->
-    String.make 1 (Uchar.to_char c)
-  | i when (i >= uint 'A' && i <= uint 'Z') || (i >= uint 'a' && i <= uint 'z')
-    ->
-    String.make 1 (Char.lowercase_ascii (Uchar.to_char c))
-  | _ -> "_"
+  if not (Uchar.is_char c) then
+    (* not a latin1 character, ex: quotation mark (U+2019) in names *)
+    "_"
+  else
+    let uint c = Uchar.of_char c |> Uchar.to_int in
+    match Uchar.to_int c with
+    | i when i = uint '&' -> "and"
+    | i when i = uint '#' -> "hash"
+    | i when i = uint '*' -> "star"
+    | i when i = uint '-' -> "_"
+    | i when i = uint ' ' -> "_"
+    | i when i = uint ':' -> "_"
+    | i when i = uint '.' -> "_"
+    | i when i = uint ',' -> "_"
+    | i when i = uint '!' -> "" (* only used for ON! arrow and UP! button *)
+    | i when i = uint '(' -> "_"
+    | i when i = uint ')' -> "_"
+    | 197 -> "a" (* Å *)
+    | 227 -> "a" (* ã *)
+    | 231 -> "c" (* ç *)
+    | 233 -> "e" (* é *)
+    | 237 -> "i" (* í *)
+    | 241 -> "n" (* piñata !*)
+    | 244 -> "o" (* ô *)
+    | i when (i = uint '_' || i = uint '\'') || (i >= uint '0' && i <= uint '9')
+      ->
+      String.make 1 (Uchar.to_char c)
+    | i when (i >= uint 'A' && i <= uint 'Z') || (i >= uint 'a' && i <= uint 'z')
+      ->
+      String.make 1 (Char.lowercase_ascii (Uchar.to_char c))
+    | other ->
+      failwith
+        (Printf.sprintf "unhandled character: '%c'"
+           (other |> Uchar.of_int |> Uchar.to_char) )
 
 let deduplicate_underscores s =
   let drop _ s = String.sub s 1 (String.length s - 1) in
@@ -80,8 +104,12 @@ let identifier_of_description s =
     | `Await -> list_of_codes acc
     | `Malformed _ -> list_of_codes acc
   in
-  list_of_codes [] |> List.map to_legal_ident_char |> fun l ->
-  String.concat "" l |> wrap_leading_ints |> deduplicate_underscores
+  let codes = list_of_codes [] in
+  let legal_chars_list = List.map to_legal_ident_char codes in
+  let s = String.concat "" legal_chars_list in
+  let s = wrap_leading_ints s in
+  let s = deduplicate_underscores s in
+  s
 
 let emoji_bytes el =
   Bytes.of_string el
@@ -116,9 +144,9 @@ let parse_row (l, category, sub_category) el =
   | None -> (
     match Soup.select_one "td.andr > a > img" el with
     | None -> (* not an emoji row *) (l, category, sub_category)
-    | Some emoji ->
+    | Some img ->
       let emoji =
-        match Soup.attribute "alt" emoji with
+        match Soup.attribute "alt" img with
         | None -> failwith "no alt on emoji img"
         | Some emoji -> emoji
       in
@@ -156,10 +184,11 @@ let parse_row (l, category, sub_category) el =
       , sub_category ) )
 
 let program =
-  Cohttp_lwt_unix.Client.get
-    ("http://www.unicode.org/emoji/charts/emoji-list.html" |> Uri.of_string)
-  >>= fun (_, body) ->
-  Cohttp_lwt__Body.to_string body >>= fun html ->
+  let* _, body =
+    Cohttp_lwt_unix.Client.get
+      ("http://www.unicode.org/emoji/charts/emoji-list.html" |> Uri.of_string)
+  in
+  let* html = Cohttp_lwt__Body.to_string body in
   let parsed = Soup.parse html in
   let table = Soup.children @@ Option.get @@ Soup.select_one "tbody" parsed in
   let init = ([], "", "") in
@@ -221,32 +250,26 @@ let program =
 
   let all_names = List.map (fun emoji -> emoji.name) emojis in
 
-  Lwt_io.stdout |> fun output ->
-  Printf.sprintf
-    "(** All Emojis defined by the Unicode standard, encoded using UTF-8 *)\n"
-  |> Lwt_io.write_line output
-  >>= fun () ->
-  emojis
-  |> Lwt_list.iter_s (fun e ->
-         Printf.sprintf "(** %s (%s): %s *)\nlet %s = \"%s\"\n" e.emoji
-           e.code_point e.description
-           (identifier_of_description e.description)
-           (emoji_bytes e.emoji)
-         |> Lwt_io.write_line output )
-  >>= fun () ->
-  sub_cat_emojis_list
-  |> Lwt_list.iter_s (fun (sub_cat, emojis) ->
-         Printf.sprintf "\nlet %s = [|%s|]" sub_cat (String.concat ";" emojis)
-         |> Lwt_io.write_line output )
-  >>= fun () ->
-  cat_emojis_list
-  |> Lwt_list.iter_s (fun (cat, emojis) ->
-         Printf.sprintf "\nlet %s = [|%s|]" cat (String.concat ";" emojis)
-         |> Lwt_io.write_line output )
-  >>= fun () ->
-  Printf.sprintf
-    "(** All included emojis in an array *)\nlet all_emojis = [|%s|]"
-    (String.concat ";" all_names)
-  |> Lwt_io.write_line output
+  Printf.printf
+    "(** All Emojis defined by the Unicode standard, encoded using UTF-8 *)\n";
+  List.iter
+    (fun e ->
+      Printf.printf "\n(** %s (%s): %s *)\nlet %s = \"%s\"\n" e.emoji
+        e.code_point e.description
+        (identifier_of_description e.description)
+        (emoji_bytes e.emoji) )
+    emojis;
+  List.iter
+    (fun (sub_cat, emojis) ->
+      Printf.printf "\nlet %s = [|%s|]\n" sub_cat (String.concat ";" emojis) )
+    sub_cat_emojis_list;
+  List.iter
+    (fun (cat, emojis) ->
+      Printf.printf "\nlet %s = [|%s|]\n" cat (String.concat ";" emojis) )
+    cat_emojis_list;
+  Printf.printf
+    "\n(** All included emojis in an array *)\nlet all_emojis = [|%s|]"
+    (String.concat ";" all_names);
+  Lwt.return ()
 
 let () = Lwt_main.run program
