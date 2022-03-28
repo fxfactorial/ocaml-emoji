@@ -75,19 +75,19 @@ let deduplicate_underscores s =
 
 let identifier_of_description s =
   let decoder = Uutf.decoder ~encoding:`UTF_8 (`String s) in
-  let rec list_of_codes acc =
-    match Uutf.decode decoder with
-    | `Uchar u -> list_of_codes (u :: acc)
-    | `End -> List.rev acc
-    | `Await -> list_of_codes acc
-    | `Malformed _ -> list_of_codes acc
-  in
-  let codes = list_of_codes [] in
-  let legal_chars_list = List.map to_legal_ident_char codes in
-  let s = String.concat "" legal_chars_list in
-  let s = wrap_leading_ints s in
-  let s = deduplicate_underscores s in
-  s
+  let buf = Buffer.create (String.length s) in
+  begin
+    try
+      while true do
+        match Uutf.decode decoder with
+        | `Uchar u -> Buffer.add_string buf (to_legal_ident_char u)
+        | `End -> raise Exit
+        | `Await -> ()
+        | `Malformed e -> failwith e
+      done
+    with Exit -> ()
+  end;
+  Buffer.contents buf |> wrap_leading_ints |> deduplicate_underscores
 
 let just_innard s = s |> Soup.trimmed_texts |> String.concat ""
 
@@ -129,13 +129,14 @@ let parse_row (l, category, sub_category) el =
         | Some el -> just_innard el
       in
       (* Recently-added emoji are marked by a ⊛ in the name ⊛_⊛^^ *)
+      let prefix = "⊛" in
       let description =
-        if String.starts_with ~prefix:"⊛" description then
+        if String.starts_with ~prefix description then
           (* its not 1 *)
-          let star_len = String.length "⊛" in
+          let prefix_len = String.length prefix in
           String.trim
-          @@ String.sub description star_len
-               (String.length description - star_len)
+          @@ String.sub description prefix_len
+               (String.length description - prefix_len)
         else description
       in
       let name = identifier_of_description description in
@@ -165,63 +166,38 @@ let program =
   let parsed = Soup.parse html in
   let table = Soup.children @@ Option.get @@ Soup.select_one "tbody" parsed in
   let init = ([], "", "") in
+
   let emojis, _last_category, _last_sub_category =
     Soup.fold parse_row init table
   in
-  let emojis = List.rev emojis in
+  let emojis = List.sort (fun e1 e2 -> compare e1.name e2.name) emojis in
 
-  let tbl = Hashtbl.create 512 in
+  (* category_name -> (emoji_name -> unit) *)
+  let cats_table = Hashtbl.create 512 in
+  (* sub_category_name -> (emoji_name -> unit) *)
+  let subcats_table = Hashtbl.create 512 in
+
   List.iter
-    (fun emoji ->
-      match Hashtbl.find_opt tbl emoji.category with
-      | None ->
-        let sub_cat_tbl = Hashtbl.create 512 in
-        let emoji_tbl = Hashtbl.create 512 in
-        Hashtbl.add emoji_tbl emoji.name ();
-        Hashtbl.add sub_cat_tbl emoji.sub_category emoji_tbl;
-        Hashtbl.add tbl emoji.category sub_cat_tbl
-      | Some sub_cat_tbl -> (
-        match Hashtbl.find_opt sub_cat_tbl emoji.sub_category with
+    (fun { category; sub_category; name; _ } ->
+      let cat_table =
+        match Hashtbl.find_opt cats_table category with
         | None ->
-          let emoji_tbl = Hashtbl.create 512 in
-          Hashtbl.add emoji_tbl emoji.name ();
-          Hashtbl.add sub_cat_tbl emoji.sub_category emoji_tbl
-        | Some emoji_tbl -> Hashtbl.add emoji_tbl emoji.name () ) )
+          let cat_table = Hashtbl.create 512 in
+          Hashtbl.add cats_table category cat_table;
+          cat_table
+        | Some cat_table -> cat_table
+      in
+      Hashtbl.add cat_table name ();
+      let subcat_table =
+        match Hashtbl.find_opt subcats_table sub_category with
+        | None ->
+          let subcat_table = Hashtbl.create 512 in
+          Hashtbl.add subcats_table sub_category subcat_table;
+          subcat_table
+        | Some subcat_table -> subcat_table
+      in
+      Hashtbl.add subcat_table name () )
     emojis;
-
-  let cat_emojis_list =
-    Hashtbl.fold
-      (fun category sub_cat_tbl acc ->
-        let emojis =
-          Hashtbl.fold
-            (fun _sub_cat emojis acc ->
-              let emojis_list =
-                Hashtbl.fold (fun emoji () acc -> emoji :: acc) emojis []
-              in
-              emojis_list @ acc )
-            sub_cat_tbl []
-        in
-        (category, emojis) :: acc )
-      tbl []
-  in
-
-  let sub_cat_emojis_list =
-    Hashtbl.fold
-      (fun _category sub_cat_tbl acc ->
-        let sub_categories =
-          Hashtbl.fold
-            (fun sub_cat emojis acc ->
-              let emojis_list =
-                Hashtbl.fold (fun emoji () acc -> emoji :: acc) emojis []
-              in
-              (sub_cat, emojis_list) :: acc )
-            sub_cat_tbl []
-        in
-        sub_categories @ acc )
-      tbl []
-  in
-
-  let all_names = List.map (fun emoji -> emoji.name) emojis in
 
   Printf.printf
     "(** All Emojis defined by the Unicode standard, encoded using UTF-8 *)\n";
@@ -232,17 +208,37 @@ let program =
         (identifier_of_description e.description)
         (string_escape_hex e.emoji) )
     emojis;
+
+  let subcats =
+    Hashtbl.fold
+      (fun name emojis acc ->
+        (name, List.of_seq @@ Hashtbl.to_seq_keys emojis) :: acc )
+      subcats_table []
+  in
+  let subcats = List.sort (fun (n1, _) (n2, _) -> compare n1 n2) subcats in
+  Printf.printf "\n(** All sub categories *)\n";
   List.iter
-    (fun (sub_cat, emojis) ->
-      Printf.printf "\nlet %s = [|%s|]\n" sub_cat (String.concat ";" emojis) )
-    sub_cat_emojis_list;
+    (fun (name, emojis) ->
+      Printf.printf "\nlet %s = [|%s|]\n" name (String.concat ";" emojis) )
+    subcats;
+
+  let cats =
+    Hashtbl.fold
+      (fun name emojis acc ->
+        (name, List.of_seq @@ Hashtbl.to_seq_keys emojis) :: acc )
+      cats_table []
+  in
+  let cats = List.sort (fun (n1, _) (n2, _) -> compare n1 n2) cats in
+  Printf.printf "\n(** All categories *)\n";
   List.iter
     (fun (cat, emojis) ->
       Printf.printf "\nlet %s = [|%s|]\n" cat (String.concat ";" emojis) )
-    cat_emojis_list;
-  Printf.printf
-    "\n(** All included emojis in an array *)\nlet all_emojis = [|%s|]"
-    (String.concat ";" all_names);
+    cats;
+
+  let all_names = List.map (fun emoji -> emoji.name) emojis in
+  Printf.printf "\n(** All included emojis in an array *)\n";
+  Printf.printf "let all_emojis = [|%s|]" (String.concat ";" all_names);
+
   Lwt.return ()
 
 let () = Lwt_main.run program
