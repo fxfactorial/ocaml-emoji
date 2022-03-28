@@ -1,43 +1,38 @@
-emojis
+emoji
 ------
 
-Single OCaml file containing byte sequences for common `emojis`
-sourced from [here](http://www.unicode.org/emoji/charts/emoji-list.html)
+Single OCaml file containing byte sequences of all the Unicode emoji 
+characters and sequences sourced from [here](http://www.unicode.org/emoji/charts/emoji-list.html )
 
 ```
 $ opam install emoji
 ```
 
-You can see them by printing to the screen, 
-ie: `print_endline Emoji.man_facepalming`
+You can see them by printing to the screen: 
+```
+print_endline Emoji.troll
+```
+🧌
 
-And using `ocp-browser` shows the emoji
+You can also get all emojis from the same category or subcategory:
+```
+let best_animals = Emoji.sub_category_animal_reptile in
+Array.iter print_string best_animals;
+```
+🐉🐊🦎🦖🦕🐢🐲🐍
 
-![](./ocp-browser-emoji.png)
+Using `ocp-browser` shows the emoji
+
+![ocp-browser screenshot](./ocp-browser-emoji.png)
 
 # Development 
 
-First of all pin the package:
-
+build with
 ```
-$ opam pin add emoji /path/to/local/checkout/of/emoji
+$ dune build @all
 ```
+this will generate `emoji.ml` from `./src/gencode.ml`
 
-To update the `lib/emoji.ml` this [code](./gencode/main.ml) is
-used. Don't forget to run before (re-)installing!
-
-This simple sanity test lets you review your changes:
-
-```ocaml
-#require "emoji";;
-
-let () =
-  let ar = Emoji.all_emojis |> Array.of_list in
-  for i = 0 to Array.length ar - 1 do
-    if (i mod 80 = 0) then print_newline ();
-    print_string ar.(i);
-  done
-```
-
+You can use `./test/test.ml` to test the code.
 Which for me resulted in:
-![](./emojis.png)
+![test.ml output](./emojis.png)
