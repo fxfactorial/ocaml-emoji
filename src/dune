@@ -1,15 +1,29 @@
 (executable
  (name gencode)
  (modules gencode)
- (libraries lwt uutf cohttp-lwt-unix lambdasoup))
+ (libraries lambdasoup uutf))
 
 (library
  (modules emoji)
  (public_name emoji))
 
+(executable
+ (name updatelist)
+ (modules updatelist)
+ (libraries lwt cohttp-lwt-unix))
+
+(rule
+ (target emoji-list.html)
+ (deps updatelist.exe)
+ (mode promote)
+ (action
+  (with-stdout-to
+   emoji-list.html
+   (run ./updatelist.exe))))
+
 (rule
  (target emoji.ml)
- (deps gencode.exe)
+ (deps gencode.exe emoji-list.html)
  (action
   (with-stdout-to
    emoji.ml

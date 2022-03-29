@@ -1,5 +1,3 @@
-open Lwt.Syntax
-
 type emoji =
   { code_point : string
   ; emoji : string
@@ -157,13 +155,15 @@ let parse_row (l, category, sub_category) el =
       , category
       , sub_category ) )
 
-let program =
-  let* _, body =
-    Cohttp_lwt_unix.Client.get
-      ("http://www.unicode.org/emoji/charts/emoji-list.html" |> Uri.of_string)
+let () =
+  let file = "emoji-list.html" in
+  let chan = open_in file in
+  let parsed =
+    Fun.protect
+      ~finally:(fun () -> close_in chan)
+      (fun () -> Soup.read_channel chan |> Soup.parse)
   in
-  let* html = Cohttp_lwt__Body.to_string body in
-  let parsed = Soup.parse html in
+
   let table = Soup.children @@ Option.get @@ Soup.select_one "tbody" parsed in
   let init = ([], "", "") in
 
@@ -199,46 +199,54 @@ let program =
       Hashtbl.add subcat_table name () )
     emojis;
 
-  Printf.printf
-    "(** All Emojis defined by the Unicode standard, encoded using UTF-8 *)\n";
+  Format.printf
+    "(** All Emojis defined by the Unicode standard, encoded using UTF-8 *)@\n";
   List.iter
     (fun e ->
-      Printf.printf "\n(** %s (%s): %s *)\nlet %s = \"%s\"\n" e.emoji
+      Format.printf "@\n(** %s (%s): %s *)@\nlet %s = \"%s\"@\n" e.emoji
         e.code_point e.description
         (identifier_of_description e.description)
         (string_escape_hex e.emoji) )
     emojis;
 
+  let pp_print_list_to_ocaml_array fmt a =
+    Format.fprintf fmt "[|%a|]"
+      (Format.pp_print_list
+         ~pp_sep:(fun fmt () -> Format.fprintf fmt " ; ")
+         Format.pp_print_string )
+      a
+  in
+
   let subcats =
     Hashtbl.fold
       (fun name emojis acc ->
-        (name, List.of_seq @@ Hashtbl.to_seq_keys emojis) :: acc )
+        (name, List.sort compare @@ List.of_seq @@ Hashtbl.to_seq_keys emojis)
+        :: acc )
       subcats_table []
   in
   let subcats = List.sort (fun (n1, _) (n2, _) -> compare n1 n2) subcats in
-  Printf.printf "\n(** All sub categories *)\n";
+  Format.printf "@\n(** All sub categories *)@\n";
   List.iter
     (fun (name, emojis) ->
-      Printf.printf "\nlet %s = [|%s|]\n" name (String.concat ";" emojis) )
+      Format.printf "@\nlet %s = %a@\n" name pp_print_list_to_ocaml_array emojis
+      )
     subcats;
 
   let cats =
     Hashtbl.fold
       (fun name emojis acc ->
-        (name, List.of_seq @@ Hashtbl.to_seq_keys emojis) :: acc )
+        (name, List.sort compare @@ List.of_seq @@ Hashtbl.to_seq_keys emojis)
+        :: acc )
       cats_table []
   in
   let cats = List.sort (fun (n1, _) (n2, _) -> compare n1 n2) cats in
-  Printf.printf "\n(** All categories *)\n";
+  Format.printf "@\n(** All categories *)@\n";
   List.iter
     (fun (cat, emojis) ->
-      Printf.printf "\nlet %s = [|%s|]\n" cat (String.concat ";" emojis) )
+      Format.printf "@\nlet %s = %a@\n" cat pp_print_list_to_ocaml_array emojis
+      )
     cats;
 
   let all_names = List.map (fun emoji -> emoji.name) emojis in
-  Printf.printf "\n(** All included emojis in an array *)\n";
-  Printf.printf "let all_emojis = [|%s|]" (String.concat ";" all_names);
-
-  Lwt.return ()
-
-let () = Lwt_main.run program
+  Format.printf "@\n(** All included emojis in an array *)@\n";
+  Format.printf "let all_emojis = %a@\n" pp_print_list_to_ocaml_array all_names
