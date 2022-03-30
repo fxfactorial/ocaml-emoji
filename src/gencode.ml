@@ -55,8 +55,8 @@ let to_legal_ident_char c =
     | '\237' -> "i" (* í *)
     | '\241' -> "n" (* piñata !*)
     | '\244' -> "o" (* ô *)
-    | ('_' | '\'' | '0' .. '9') as c -> String.make 1 c
-    | ('A' .. 'Z' | 'a' .. 'z') as c -> String.make 1 (Char.lowercase_ascii c)
+    | ('_' | '\'' | '0' .. '9' | 'a' .. 'z') as c -> String.make 1 c
+    | 'A' .. 'Z' as c -> String.make 1 (Char.lowercase_ascii c)
     | c -> failwith (Format.sprintf "unhandled character: '%c'" c)
 
 let deduplicate_underscores s =
@@ -155,28 +155,30 @@ let parse_row (l, category, sub_category) el =
       , category
       , sub_category ) )
 
+let file = "emoji-list.html"
+
+let chan = open_in file
+
+let parsed =
+  Fun.protect
+    ~finally:(fun () -> close_in chan)
+    (fun () -> Soup.read_channel chan |> Soup.parse)
+
+let table = Soup.children @@ Option.get @@ Soup.select_one "tbody" parsed
+
+let init = ([], "", "")
+
+let emojis, _last_category, _last_sub_category = Soup.fold parse_row init table
+
+let emojis = List.sort (fun e1 e2 -> compare e1.name e2.name) emojis
+
+(* category_name -> (emoji_name -> unit) *)
+let cats_table = Hashtbl.create 512
+
+(* sub_category_name -> (emoji_name -> unit) *)
+let subcats_table = Hashtbl.create 512
+
 let () =
-  let file = "emoji-list.html" in
-  let chan = open_in file in
-  let parsed =
-    Fun.protect
-      ~finally:(fun () -> close_in chan)
-      (fun () -> Soup.read_channel chan |> Soup.parse)
-  in
-
-  let table = Soup.children @@ Option.get @@ Soup.select_one "tbody" parsed in
-  let init = ([], "", "") in
-
-  let emojis, _last_category, _last_sub_category =
-    Soup.fold parse_row init table
-  in
-  let emojis = List.sort (fun e1 e2 -> compare e1.name e2.name) emojis in
-
-  (* category_name -> (emoji_name -> unit) *)
-  let cats_table = Hashtbl.create 512 in
-  (* sub_category_name -> (emoji_name -> unit) *)
-  let subcats_table = Hashtbl.create 512 in
-
   List.iter
     (fun { category; sub_category; name; _ } ->
       let cat_table =
@@ -207,46 +209,51 @@ let () =
         e.code_point e.description
         (identifier_of_description e.description)
         (string_escape_hex e.emoji) )
-    emojis;
+    emojis
 
-  let pp_print_list_to_ocaml_array fmt a =
-    Format.fprintf fmt "[|%a|]"
-      (Format.pp_print_list
-         ~pp_sep:(fun fmt () -> Format.fprintf fmt " ; ")
-         Format.pp_print_string )
-      a
-  in
+let pp_print_list_to_ocaml_array fmt a =
+  Format.fprintf fmt "[|%a|]"
+    (Format.pp_print_list
+       ~pp_sep:(fun fmt () -> Format.fprintf fmt " ; ")
+       Format.pp_print_string )
+    a
 
-  let subcats =
-    Hashtbl.fold
-      (fun name emojis acc ->
-        (name, List.sort compare @@ List.of_seq @@ Hashtbl.to_seq_keys emojis)
-        :: acc )
-      subcats_table []
-  in
-  let subcats = List.sort (fun (n1, _) (n2, _) -> compare n1 n2) subcats in
+let subcats =
+  Hashtbl.fold
+    (fun name emojis acc ->
+      (name, List.sort compare @@ List.of_seq @@ Hashtbl.to_seq_keys emojis)
+      :: acc )
+    subcats_table []
+
+let subcats = List.sort (fun (n1, _) (n2, _) -> compare n1 n2) subcats
+
+let () =
   Format.printf "@\n(** All sub categories *)@\n";
   List.iter
     (fun (name, emojis) ->
       Format.printf "@\nlet %s = %a@\n" name pp_print_list_to_ocaml_array emojis
       )
-    subcats;
+    subcats
 
-  let cats =
-    Hashtbl.fold
-      (fun name emojis acc ->
-        (name, List.sort compare @@ List.of_seq @@ Hashtbl.to_seq_keys emojis)
-        :: acc )
-      cats_table []
-  in
-  let cats = List.sort (fun (n1, _) (n2, _) -> compare n1 n2) cats in
+let cats =
+  Hashtbl.fold
+    (fun name emojis acc ->
+      (name, List.sort compare @@ List.of_seq @@ Hashtbl.to_seq_keys emojis)
+      :: acc )
+    cats_table []
+
+let cats = List.sort (fun (n1, _) (n2, _) -> compare n1 n2) cats
+
+let () =
   Format.printf "@\n(** All categories *)@\n";
   List.iter
     (fun (cat, emojis) ->
       Format.printf "@\nlet %s = %a@\n" cat pp_print_list_to_ocaml_array emojis
       )
-    cats;
+    cats
 
-  let all_names = List.map (fun emoji -> emoji.name) emojis in
+let all_names = List.map (fun emoji -> emoji.name) emojis
+
+let () =
   Format.printf "@\n(** All included emojis in an array *)@\n";
   Format.printf "let all_emojis = %a@\n" pp_print_list_to_ocaml_array all_names
