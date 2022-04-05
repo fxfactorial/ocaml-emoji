@@ -164,7 +164,7 @@ let parsed =
     ~finally:(fun () -> close_in chan)
     (fun () -> Soup.read_channel chan |> Soup.parse)
 
-let table = Soup.children @@ Option.get @@ Soup.select_one "tbody" parsed
+let table = Soup.select "table > tbody > tr" parsed
 
 let init = ([], "", "")
 
