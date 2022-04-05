@@ -113,7 +113,7 @@ let parse_row (l, category, sub_category) el =
         | "mediumhead" -> (l, category, title)
         | _ -> failwith "invalid class name" ) )
   | None -> (
-    match Soup.select_one "td.andr > a > img" el with
+    match Soup.select_one "img" el with
     | None -> (* not an emoji row *) (l, category, sub_category)
     | Some img ->
       let emoji =
@@ -155,20 +155,27 @@ let parse_row (l, category, sub_category) el =
       , category
       , sub_category ) )
 
-let file = "emoji-list.html"
-
-let chan = open_in file
-
-let parsed =
+let parse file =
+  let chan = open_in file in
   Fun.protect
     ~finally:(fun () -> close_in chan)
     (fun () -> Soup.read_channel chan |> Soup.parse)
 
-let table = Soup.select "table > tbody > tr" parsed
+let parsed = parse "emoji-list.html"
+
+let parsed_skin_tones = parse "emoji-list-skin-tones.html"
+
+let table = Soup.to_list @@ Soup.select "table > tbody > tr" parsed
+
+let table_skin_tones =
+  Soup.to_list @@ Soup.select "table > tbody > tr" parsed_skin_tones
+
+let table = table_skin_tones @ table
 
 let init = ([], "", "")
 
-let emojis, _last_category, _last_sub_category = Soup.fold parse_row init table
+let emojis, _last_category, _last_sub_category =
+  List.fold_left parse_row init table
 
 let emojis = List.sort (fun e1 e2 -> compare e1.name e2.name) emojis
 
