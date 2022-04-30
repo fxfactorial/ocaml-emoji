@@ -8,16 +8,11 @@ type emoji = {
 }
 
 let rec emojis_list codes emojis descs names =
-  if not (List.length codes = List.length emojis &&
-     List.length emojis = List.length descs &&
-     List.length descs = List.length names)
-  then raise (Invalid_argument "Lists must be of the same length")
-  else if List.length codes = 0
-    then []
-    else { code_point = List.hd codes; emoji = List.hd emojis;
-           description = List.hd descs; name = List.hd names; }
-          :: (emojis_list (List.tl codes) (List.tl emojis)
-                          (List.tl descs) (List.tl names))
+  match codes, emojis, descs, names with
+  | [], [], [], [] -> []
+  | code_point :: codes, emoji :: emojis, description :: descs, name :: names ->
+    {code_point; emoji; description; name} :: emojis_list codes emojis descs names
+  | _ -> invalid_arg "Lists must be of the same length"
 
 module Bytes = struct
   include Bytes
