@@ -7,136 +7,110 @@ type emoji = {
   name        : string;
 }
 
-let rec emojis_list codes emojis descs names =
-  if not (List.length codes = List.length emojis &&
-     List.length emojis = List.length descs &&
-     List.length descs = List.length names)
-  then raise (Invalid_argument "Lists must be of the same length")
-  else if List.length codes = 0
-    then []
-    else { code_point = List.hd codes; emoji = List.hd emojis;
-           description = List.hd descs; name = List.hd names; }
-          :: (emojis_list (List.tl codes) (List.tl emojis)
-                          (List.tl descs) (List.tl names))
+let clean_up_description =
+  List.fold_right
+    (fun (re, replacement) -> Str.global_replace (Str.regexp re) replacement)
+    ["⊛ ", ""] (* remove the indicator of new Unicode emojis *)
 
-module Bytes = struct
-  include Bytes
-  let map_to_list (f : char -> 'b) (s : t) =
-    let rec map_tail_reverse f s i acc =
-      if i >= 0
-    then map_tail_reverse f s (i - 1) (f (Bytes.get s i) :: acc)
-    else acc
-    in map_tail_reverse f s (Bytes.length s - 1) []
-end
+let rec emojis_zip codes emojis descs names =
+  match codes, emojis, descs, names with
+  | [], [], [], [] -> []
+  | code_point :: codes, emoji :: emojis, description :: descs, name :: names ->
+    {code_point; emoji; description; name} :: emojis_zip codes emojis descs names
+  | _ -> invalid_arg "Lists must be of the same length"
 
-let hex_escape_sequence c =
-  let nibble_to_hex_char n = match n with
-    | n when n >= 0  && n < 10 -> Char.chr (Char.code '0' + n)
-    | n when n >= 10 && n < 16 -> Char.chr (Char.code 'a' + (n - 10))
-    | _ -> raise (Invalid_argument "Nibbles must be within the range of 0x0 and 0xf")
-  in
-  let i  = Char.code c in
-  let n1 = (i land 0xf0) lsr 4 in
-  let n2 = (i land 0x0f) in
-  let initfun = function
-    | 0 -> nibble_to_hex_char n1
-    | 1 -> nibble_to_hex_char n2
-    | _ -> raise (Invalid_argument "Only indices between 0 and 1 are allowed")
-  in String.concat "" ["\\x"; String.init 2 initfun; ]
+(* leading ints are illegal in OCaml identifiers *)
+let rewrite_leading_digit =
+  List.fold_right
+    (fun (re, replacement) -> Str.global_replace (Str.regexp re) replacement)
+    ["^1st", "first"; "^2nd", "second"; "^3rd", "third"]
 
-(* leading ints are illegal in
- * OCaml identifiers so we prepend
- * them with a '_' *)
-let wrap_leading_ints s =
-  let i = Char.code (String.get s 0) in
-  if i >= (Char.code '0') && i <= (Char.code '9')
-  then String.concat "" ["_"; s]
-  else s
+let char_to_legal_ident_char =
+  function
+  | '&' -> "and"
+  | '*' -> "asterisk"
+  | '#' -> "number_sign"
+  | ('_' | '\'' | '0' .. '9') as c -> String.make 1 c
+  | ('a' .. 'z' | 'A' .. 'Z') as c -> String.make 1 (Char.lowercase_ascii c)
+  | '\xc5' (* Å *) -> "aa" (* Åland Islands *)
+  | '\xe3' (* ã *) -> "a" (* São Tomé & Príncipe *)
+  | '\xe7' (* ç *) -> "c" (* Curaçao *)
+  | '\xe9' (* é *) -> "e" (* St. Barthélemy, Réunion, São Tomé & Príncipe, *)
+  | '\xed' (* í *) -> "i" (* São Tomé & Príncipe *)
+  | '\xf1' (* ñ *) -> "n" (* piñata *)
+  | '\xf4' (* ô *) -> "o" (* Côte d’Ivoire *)
+  | ' ' | '!' | '(' | ')' | ',' | '-' | '.' | ':' -> "_"
+  | c -> invalid_arg (Printf.sprintf "latin1_to_legal_ident_char: unexpected code point %#x; please update main.ml" (Char.code c))
 
 let to_legal_ident_char c =
-  let uint c = Uchar.of_char c |> Uchar.to_int in
-  match (Uchar.to_int c) with
-  | i when i = (uint '&') -> "and"
-  | i when (i = (uint '_') || i = (uint '\''))
-           || (i >= (uint '0') && i <= (uint '9'))
-    -> String.make 1 (Uchar.to_char c)
-  | i when (i >= (uint 'A') && i <= (uint 'Z'))
-           || (i >= (uint 'a') && i <= (uint 'z'))
-    -> String.make 1 (Char.lowercase_ascii (Uchar.to_char c))
-  | _ -> "_"
+  if Uchar.is_char c
+  then char_to_legal_ident_char (Uchar.to_char c)
+  else
+    match Uchar.to_int c with
+    | 0x2019 (* ’ *) -> "'" (* o’clock *)
+    | 0x201c (* “ *) | 0x201d (* ” *) -> "_"
+    | i -> invalid_arg (Printf.sprintf "to_legal_ident_char: unexpected code point %#x; please update main.ml" i)
 
-let deduplicate_underscores s =
-  let drop _ s = String.sub s 1 (String.length s - 1) in
-  let rec dedup lastwas s =
-    if String.length s == 0 then ""
-    else let c = String.get s 0 in
-         if c == '_'
-         then if lastwas
-           then dedup true (drop 1 s)
-           else String.concat "" ["_"; dedup true (drop 1 s) ]
-         else String.concat "" [ String.make 1 c; dedup false (drop 1 s) ]
-  in dedup false s
+let clean_up_underscores s =
+  s
+  |> Str.global_replace (Str.regexp "_+") "_"
+  |> Str.global_replace (Str.regexp "^_+") ""
+  |> Str.global_replace (Str.regexp "_+$") ""
 
 let identifier_of_description s =
-  let decoder = Uutf.decoder ~encoding:`UTF_8 (`String s) in
-  let rec list_of_codes acc =
-    match Uutf.decode decoder with
-    | `Uchar u -> list_of_codes (u :: acc)
-    | `End -> List.rev acc
-    | `Await -> list_of_codes acc
-    | `Malformed _ -> list_of_codes acc
+  let open Uchar in
+  let rec list_of_codes acc i =
+    if i >= String.length s
+    then List.rev acc
+    else
+      let decoder = String.get_utf_8_uchar s i in
+      list_of_codes (utf_decode_uchar decoder :: acc) (i + utf_decode_length decoder)
   in
-  list_of_codes [] |> List.map to_legal_ident_char
-    |> fun l -> String.concat "" l
-    |> wrap_leading_ints |> deduplicate_underscores
+  list_of_codes [] 0
+  |> List.map to_legal_ident_char |> String.concat ""
+  |> rewrite_leading_digit
+  |> clean_up_underscores
 
-
-let emoji_bytes el =
-  Bytes.of_string el |> Bytes.map_to_list hex_escape_sequence |> String.concat ""
-
-let program =
-  Cohttp_lwt_unix.Client.get
-    ("http://www.unicode.org/emoji/charts/emoji-list.html"
-     |> Uri.of_string) >>= fun (_, body) ->
+let extract_data url =
+  Cohttp_lwt_unix.Client.get (Uri.of_string url) >>= fun (_, body) ->
   Cohttp_lwt__Body.to_string body >>= fun html ->
 
   let parsed = Soup.parse html in
 
-  let just_innards l =
-    l |> List.map (fun l -> l |> Soup.trimmed_texts |> String.concat "")
+  let extract_rows cls =
+    Soup.select (Printf.sprintf "tbody > tr > td.%s" cls) parsed
+    |> Soup.to_list
+    |> List.map (fun l -> l |> Soup.trimmed_texts |> String.concat "")
   in
 
-  let emojis = Soup.select "tbody > tr > td.andr > a > img" parsed
-               |> Soup.to_list
-               |> List.map (fun el ->
-                   Soup.attribute "alt" el |> (function | Some x -> x | None -> assert false))
-  in
-
-  let descriptions = Soup.select "tbody > tr > td.name" parsed
-                     |> Soup.to_list |> just_innards in
-
-
-  let code_points = Soup.select "tbody > tr > td.code > a" parsed
-                    |> Soup.to_list |> just_innards
-  in
-
+  let emojis = extract_rows "chars" in
+  let descriptions = extract_rows "name" |> List.map clean_up_description in
+  let code_points = extract_rows "code" in
 
   let let_names = List.map identifier_of_description descriptions in
-  let zipped = emojis_list code_points emojis descriptions let_names in
+  Lwt.return (emojis_zip code_points emojis descriptions let_names, let_names)
+
+(*"http://www.unicode.org/emoji/charts/full-emoji-list.html" *)
+let program =
+  extract_data "https://www.unicode.org/emoji/charts/full-emoji-list.html" >>= fun (emojis, emoji_let_names) ->
+  extract_data "https://www.unicode.org/emoji/charts/full-emoji-modifiers.html" >>= fun (skin_tones, skin_tones_let_names) ->
 
   Lwt_io.open_file ~mode:Lwt_io.Output "lib/emoji.ml" >>= fun output ->
-    Printf.sprintf "(** All Emojis defined by the \
-    Unicode standard, encoded using UTF-8 *)\n" |> Lwt_io.write_line output
-    >>= fun () ->
-      zipped |> Lwt_list.iter_s (fun e ->
-        Printf.sprintf "(** %s (%s): %s *)\nlet %s = \"%s\"\n"
+  Printf.sprintf "(** All Emojis defined by the \
+                  Unicode standard, encoded using UTF-8 *)\n" |> Lwt_io.write_line output
+  >>= fun () ->
+  (emojis @ skin_tones) |> Lwt_list.iter_s (fun e ->
+      Printf.sprintf "(** %s (%s): %s *)\nlet %s = \"%s\"\n"
         e.emoji e.code_point e.description
-        (identifier_of_description e.description) (emoji_bytes e.emoji)
-               |> Lwt_io.write_line output
+        (identifier_of_description e.description) (String.escaped e.emoji)
+      |> Lwt_io.write_line output
     ) >>= fun () ->
-      Printf.sprintf "(** All included emojis in a list *)\n\
-      let all_emojis = [%s]" (String.concat ";" let_names)
-               |> Lwt_io.write_line output
+  Printf.sprintf "(** All included emojis in a list *)\n\
+                  let all_emojis = [%s]" (String.concat ";" @@ emoji_let_names @ skin_tones_let_names)
+  |> Lwt_io.write_line output >>= fun () ->
+  Printf.sprintf "(** All included emojis without modifiers in a list *)\n\
+                  let all_emojis_without_skin_tones = [%s]" (String.concat ";" @@ emoji_let_names)
+  |> Lwt_io.write_line output
 
 let () =
   Lwt_main.run program
