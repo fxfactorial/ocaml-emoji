@@ -47,7 +47,7 @@ let to_legal_ident_char c =
   then char_to_legal_ident_char (Uchar.to_char c)
   else
     match Uchar.to_int c with
-    | 0x2019 (* ’ *) -> "'" (* o’clock *)
+    | 0x2019 (* ’ *) -> "'" (* o’clock, man’s, woman’s, worker’s, Côte d’Ivoire, etc. *)
     | 0x201c (* “ *) | 0x201d (* ” *) -> "_"
     | i -> invalid_arg (Printf.sprintf "to_legal_ident_char: unexpected code point %#x; please update main.ml" i)
 
@@ -96,19 +96,18 @@ let program =
   extract_data "https://www.unicode.org/emoji/charts/full-emoji-modifiers.html" >>= fun (skin_tones, skin_tones_let_names) ->
 
   Lwt_io.open_file ~mode:Lwt_io.Output "lib/emoji.ml" >>= fun output ->
-  Printf.sprintf "(** All Emojis defined by the \
-                  Unicode standard, encoded using UTF-8 *)\n" |> Lwt_io.write_line output
+  Lwt_io.write_line output "(** All Emojis defined by the Unicode standard, encoded using UTF-8 *)"
   >>= fun () ->
   (emojis @ skin_tones) |> Lwt_list.iter_s (fun e ->
-      Printf.sprintf "(** %s (%s): %s *)\nlet %s = \"%s\"\n"
+      Printf.sprintf "\n(** %s (%s): %s *)\nlet %s = \"%s\""
         e.emoji e.code_point e.description
         (identifier_of_description e.description) (String.escaped e.emoji)
       |> Lwt_io.write_line output
     ) >>= fun () ->
-  Printf.sprintf "(** All included emojis in a list *)\n\
+  Printf.sprintf "\n(** All included emojis in a list *)\n\
                   let all_emojis = [%s]" (String.concat ";" @@ emoji_let_names @ skin_tones_let_names)
   |> Lwt_io.write_line output >>= fun () ->
-  Printf.sprintf "(** All included emojis without modifiers in a list *)\n\
+  Printf.sprintf "\n(** All included emojis without modifiers in a list *)\n\
                   let all_emojis_without_skin_tones = [%s]" (String.concat ";" @@ emoji_let_names)
   |> Lwt_io.write_line output
 
