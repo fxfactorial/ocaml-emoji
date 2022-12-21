@@ -31,7 +31,7 @@ build with
 ```
 $ dune build @all
 ```
-this will generate `emoji.ml` from `./src/gencode.ml`
+this will generate `./src/emoji.ml` from `./gencode/gencode.ml`
 
 You can use `./test/test.ml` to test the code.
 Which for me resulted in:

@@ -1,5 +1,5 @@
 let print_emojis emojis =
-  Array.iter (fun emoji -> print_string emoji) emojis;
+  Array.iter print_string emojis;
   print_newline ()
 
 let () =

@@ -1,0 +1,9 @@
+(executable
+ (name gencode)
+ (modules gencode)
+ (libraries lambdasoup uutf))
+
+(executable
+ (name updatelist)
+ (modules updatelist)
+ (libraries lwt cohttp-lwt-unix))
