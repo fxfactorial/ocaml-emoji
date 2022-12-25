@@ -10,16 +10,16 @@ $ opam install emoji
 
 You can see them by printing to the screen: 
 ```ocaml
-print_endline Emoji.troll
+# Emoji.troll;;
+- : string = "🧌"
 ```
-🧌
 
 You can also get all emojis from the same category or subcategory:
 ```ocaml
-let best_animals = Emoji.sub_category_animal_reptile in
-Array.iter print_string best_animals;
+# let best_animals = Emoji.sub_category_animal_reptile;;
+val best_animals : string array =
+  [|"🐊"; "🐉"; "🐲"; "🦎"; "🦕"; "🐍"; "🦖"; "🐢"|]
 ```
-🐉🐊🦎🦖🦕🐢🐲🐍
 
 Using `ocp-browser` shows the emoji
 

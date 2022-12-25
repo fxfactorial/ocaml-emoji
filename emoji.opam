@@ -11,8 +11,9 @@ homepage: "https://github.com/fxfactorial/ocaml-emoji"
 bug-reports: "https://github.com/fxfactorial/ocaml-emoji/issues"
 depends: [
   "ocaml" {>= "4.04"}
-  "dune" {>= "2.8" & >= "2.8.0"}
+  "dune" {>= "3.2" & >= "2.8.0"}
   "odoc" {with-doc}
+  "mdx" {with-test}
 ]
 build: [
   ["dune" "subst"] {dev}
