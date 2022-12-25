@@ -1,3 +1,18 @@
 (lang dune 2.8)
 (name emoji)
 (explicit_js_mode)
+(generate_opam_files true)
+(license BSD-3-Clause)
+(authors "Edgar Aroutiounian <edgar.factorial@gmail.com>")
+(maintainers "Edgar Aroutiounian <edgar.factorial@gmail.com>")
+(source (github fxfactorial/ocaml-emoji))
+(package
+  (name emoji)
+  (synopsis "Use emojis by name")
+  (description "OCaml library providing byte sequences of all the Unicode emoji characters and sequences sourced from http://www.unicode.org/emoji/charts/emoji-list.html" )
+  (tags (emoji unicode))
+  (depends
+    (ocaml (>= "4.04"))
+    (dune (>= "2.8.0"))
+    (odoc :with-doc)
+  ))

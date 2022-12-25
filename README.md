@@ -1,7 +1,7 @@
 emoji
 ------
 
-Single OCaml file containing byte sequences of all the Unicode emoji 
+OCaml library providing byte sequences of all the Unicode emoji 
 characters and sequences sourced from [here](http://www.unicode.org/emoji/charts/emoji-list.html )
 
 ```
@@ -9,13 +9,13 @@ $ opam install emoji
 ```
 
 You can see them by printing to the screen: 
-```
+```ocaml
 print_endline Emoji.troll
 ```
 🧌
 
 You can also get all emojis from the same category or subcategory:
-```
+```ocaml
 let best_animals = Emoji.sub_category_animal_reptile in
 Array.iter print_string best_animals;
 ```
@@ -27,12 +27,14 @@ Using `ocp-browser` shows the emoji
 
 # Development 
 
-build with
+generate emoji.ml with 
 ```
-$ dune build @all
+$ dune exec gencode/updatelist.exe && dune exec gencode/gencode.exe > src/emoji.ml
 ```
-this will generate `./src/emoji.ml` from `./gencode/gencode.ml`
-
-You can use `./test/test.ml` to test the code.
+test with 
+```
+$ dune runtest
+```
 Which for me resulted in:
-![test.ml output](./emojis.png)
+![emojis_screenshot](./emojis.png)
+
