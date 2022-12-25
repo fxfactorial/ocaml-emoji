@@ -1,0 +1,7 @@
+{0 emoji}
+
+{{:https://github.com/fxfactorial/ocaml-emoji} Emoji} is an {{:https://ocaml.org} OCaml} library providing byte sequences of all the Unicode emoji characters and sequences sourced from {{:http://www.unicode.org/emoji/charts/emoji-list.html} unicode.org}
+
+{!modules:
+Emoji
+}
