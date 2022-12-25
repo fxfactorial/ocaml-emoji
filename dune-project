@@ -1,4 +1,5 @@
-(lang dune 2.8)
+(lang dune 3.2)
+(using mdx 0.3)
 (name emoji)
 (explicit_js_mode)
 (generate_opam_files true)
@@ -15,4 +16,5 @@
     (ocaml (>= "4.04"))
     (dune (>= "2.8.0"))
     (odoc :with-doc)
+    (mdx :with-test)
   ))
