@@ -55,6 +55,7 @@ let to_legal_ident_char c =
     | '\237' -> "i" (* í *)
     | '\241' -> "n" (* piñata !*)
     | '\244' -> "o" (* ô *)
+    | '\252' -> "u" (* ü *)
     | ('_' | '\'' | '0' .. '9' | 'a' .. 'z') as c -> String.make 1 c
     | 'A' .. 'Z' as c -> String.make 1 (Char.lowercase_ascii c)
     | c -> failwith (Format.sprintf "unhandled character: '%c'" c)
