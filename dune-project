@@ -10,11 +10,15 @@
 (package
   (name emoji)
   (synopsis "Use emojis by name")
-  (description "OCaml library providing byte sequences of all the Unicode emoji characters and sequences sourced from http://www.unicode.org/emoji/charts/emoji-list.html" )
+  (description "OCaml library providing byte sequences of all the Unicode emoji characters and sequences sourced from unicode.org" )
   (tags (emoji unicode))
   (depends
     (ocaml (>= "4.04"))
     (dune (>= "2.8.0"))
     (odoc :with-doc)
     (mdx :with-test)
+    (lwt :with-test)
+    (cohttp-lwt-unix :with-test)
+    (lambdasoup :with-test)
+    (uutf :with-test)
   ))
