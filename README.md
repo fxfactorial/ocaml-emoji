@@ -35,6 +35,4 @@ test with
 ```
 $ dune runtest
 ```
-Which for me resulted in:
-![emojis_screenshot](./emojis.png)
 
