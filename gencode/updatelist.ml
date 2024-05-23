@@ -1,6 +1,6 @@
 open Lwt.Syntax
 
-let url = "http://www.unicode.org/emoji/charts/emoji-list.html"
+let url = "https://www.unicode.org/emoji/charts/full-emoji-list.html"
 
 let url_skin_tones =
   "https://www.unicode.org/emoji/charts/full-emoji-modifiers.html"
