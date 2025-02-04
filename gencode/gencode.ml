@@ -94,6 +94,80 @@ let identifier_of_description s =
 
 let just_innard s = s |> Soup.trimmed_texts |> String.concat ""
 
+type skin_tone =
+  | Light
+  | Medium_light
+  | Medium
+  | Medium_dark
+  | Dark
+
+let skin_tone_of_order_count = function
+  | 1 -> Light
+  | 2 -> Medium_light
+  | 3 -> Medium
+  | 4 -> Medium_dark
+  | 5 -> Dark
+  | _ -> failwith "skin_tone_of_order_count failure"
+
+let skin_tone_of_code_point code_point =
+  let skin_tone_to_code_point o =
+    match o with
+    | Light -> "U+1F3FB"
+    | Medium_light -> "U+1F3FC"
+    | Medium -> "U+1F3FD"
+    | Medium_dark -> "U+1F3FE"
+    | Dark -> "U+1F3FF"
+  in
+  let skin_tones = [| Light; Medium_light; Medium; Medium_dark; Dark |] in
+  let chars = String.split_on_char ' ' code_point in
+  match List.nth_opt chars 1 with
+  | None -> failwith "skin_tone_of_code_point failure: invalid code_point size"
+  | Some code -> (
+    let opt =
+      Array.find_opt
+        (fun o -> String.equal code (skin_tone_to_code_point o))
+        skin_tones
+    in
+    match opt with
+    | None -> failwith "skin_tone_of_code_point failure"
+    | Some o -> o )
+
+(* HACK; missing skin tones in description:
+   some emoji have the same description because of skin tones missing from description
+   we change the description to contains the skin tones
+   to guess the skin tone we relies on the fact that skin tones are given in a
+   specific order in the html
+   and we double check by looking for specific code that define skin tones *)
+let fix_incomplete_skin_tones_description =
+  let skin_tones =
+    [| ""
+     ; " light skin tone"
+     ; " medium-light skin tone"
+     ; " medium skin tone"
+     ; " medium-dark skin tone"
+     ; " dark skin tone"
+    |]
+  in
+  let ht = Hashtbl.create 0x100000 in
+  fun code_point s ->
+    let duplicate_count =
+      match Hashtbl.find_opt ht s with
+      | None -> 0
+      | Some count ->
+        let order_count_guess = skin_tone_of_order_count count in
+        let code_point_guess = skin_tone_of_code_point code_point in
+        begin
+          if order_count_guess = code_point_guess then ()
+          else
+            failwith
+              (Format.sprintf "failed to guess skin tones: %s" code_point)
+        end;
+        count
+    in
+    Hashtbl.replace ht s (duplicate_count + 1);
+    let missing_skin_tone = skin_tones.(duplicate_count) in
+    s ^ missing_skin_tone
+
 let parse_row (l, category, sub_category) el =
   match Soup.select_one "th" el with
   | Some el -> (
@@ -121,6 +195,11 @@ let parse_row (l, category, sub_category) el =
     match Soup.select_one "img" el with
     | None -> (* not an emoji row *) (l, category, sub_category)
     | Some img ->
+      let code_point =
+        match Soup.select_one "td.code > a" el with
+        | None -> failwith "no code_point found"
+        | Some el -> just_innard el
+      in
       let emoji =
         match Soup.attribute "alt" img with
         | None -> failwith "no alt on emoji img"
@@ -142,12 +221,11 @@ let parse_row (l, category, sub_category) el =
                (String.length description - prefix_len)
         else description
       in
-      let name = identifier_of_description description in
-      let code_point =
-        match Soup.select_one "td.code > a" el with
-        | None -> failwith "no code_point found"
-        | Some el -> just_innard el
+      (* fix missing skin tones in description *)
+      let description =
+        fix_incomplete_skin_tones_description code_point description
       in
+      let name = identifier_of_description description in
 
       ( { code_point
         ; emoji
@@ -175,7 +253,7 @@ let table = Soup.to_list @@ Soup.select "table > tbody > tr" parsed
 let table_skin_tones =
   Soup.to_list @@ Soup.select "table > tbody > tr" parsed_skin_tones
 
-let table = table_skin_tones @ table
+let table = table @ table_skin_tones
 
 let init = ([], "", "")
 
