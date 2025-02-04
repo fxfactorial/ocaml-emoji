@@ -243,8 +243,7 @@ let () =
   Format.printf "@\n(** All sub categories *)@\n";
   List.iter
     (fun (name, emojis) ->
-      Format.printf "@\nlet %s = %a@\n" name pp_print_list_to_ocaml_array emojis
-      )
+      Format.printf "@\nlet %s = %a@\n" name pp_print_list_to_ocaml_array emojis )
     subcats
 
 let cats =
@@ -260,8 +259,7 @@ let () =
   Format.printf "@\n(** All categories *)@\n";
   List.iter
     (fun (cat, emojis) ->
-      Format.printf "@\nlet %s = %a@\n" cat pp_print_list_to_ocaml_array emojis
-      )
+      Format.printf "@\nlet %s = %a@\n" cat pp_print_list_to_ocaml_array emojis )
     cats
 
 let all_names = List.map (fun emoji -> emoji.name) emojis
