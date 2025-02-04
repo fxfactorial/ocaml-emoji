@@ -5,7 +5,7 @@
 (generate_opam_files true)
 (license BSD-3-Clause)
 (authors "Edgar Aroutiounian <edgar.factorial@gmail.com>")
-(maintainers "Edgar Aroutiounian <edgar.factorial@gmail.com>")
+(maintainers "Edgar Aroutiounian <edgar.factorial@gmail.com>" "Swrup <swrup@protonmail.com>")
 (source (github fxfactorial/ocaml-emoji))
 (package
   (name emoji)
@@ -14,8 +14,6 @@
   (tags (emoji unicode))
   (depends
     (ocaml (>= "4.04"))
-    (dune (>= "2.8.0"))
-    (odoc :with-doc)
     (mdx :with-test)
     (lwt :with-test)
     (tls-lwt :with-test)

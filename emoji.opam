@@ -3,22 +3,25 @@ opam-version: "2.0"
 synopsis: "Use emojis by name"
 description:
   "OCaml library providing byte sequences of all the Unicode emoji characters and sequences sourced from unicode.org"
-maintainer: ["Edgar Aroutiounian <edgar.factorial@gmail.com>"]
+maintainer: [
+  "Edgar Aroutiounian <edgar.factorial@gmail.com>"
+  "Swrup <swrup@protonmail.com>"
+]
 authors: ["Edgar Aroutiounian <edgar.factorial@gmail.com>"]
 license: "BSD-3-Clause"
 tags: ["emoji" "unicode"]
 homepage: "https://github.com/fxfactorial/ocaml-emoji"
 bug-reports: "https://github.com/fxfactorial/ocaml-emoji/issues"
 depends: [
+  "dune" {>= "3.2"}
   "ocaml" {>= "4.04"}
-  "dune" {>= "3.2" & >= "2.8.0"}
-  "odoc" {with-doc}
   "mdx" {with-test}
   "lwt" {with-test}
   "tls-lwt" {with-test}
   "cohttp-lwt-unix" {with-test}
   "lambdasoup" {with-test}
   "uutf" {with-test}
+  "odoc" {with-doc}
 ]
 build: [
   ["dune" "subst"] {dev}

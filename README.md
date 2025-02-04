@@ -1,7 +1,7 @@
 emoji
 ------
 
-OCaml library providing byte sequences of all the Unicode emoji 
+OCaml library providing byte sequences of all the Unicode (v16.0) emoji
 characters and sequences sourced from [here](http://www.unicode.org/emoji/charts/emoji-list.html )
 
 ```
