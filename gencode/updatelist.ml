@@ -12,7 +12,7 @@ let process url outfile =
   Lwt_io.write_line file html
 
 let program =
-  let* () = process url "emoji-list.html" in
-  process url_skin_tones "emoji-list-skin-tones.html"
+  let* () = process url "full-emoji-list.html" in
+  process url_skin_tones "full-emoji-modifiers.html"
 
 let () = Lwt_main.run program

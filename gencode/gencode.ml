@@ -1,3 +1,7 @@
+let emoji_file = "full-emoji-list.html"
+
+let emoji_modifiers_file = "full-emoji-modifiers.html"
+
 type emoji =
   { code_point : string
   ; emoji : string
@@ -162,9 +166,9 @@ let parse file =
     ~finally:(fun () -> close_in chan)
     (fun () -> Soup.read_channel chan |> Soup.parse)
 
-let parsed = parse "emoji-list.html"
+let parsed = parse emoji_file
 
-let parsed_skin_tones = parse "emoji-list-skin-tones.html"
+let parsed_skin_tones = parse emoji_modifiers_file
 
 let table = Soup.to_list @@ Soup.select "table > tbody > tr" parsed
 
