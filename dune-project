@@ -18,6 +18,7 @@
     (odoc :with-doc)
     (mdx :with-test)
     (lwt :with-test)
+    (tls-lwt :with-test)
     (cohttp-lwt-unix :with-test)
     (lambdasoup :with-test)
     (uutf :with-test)
