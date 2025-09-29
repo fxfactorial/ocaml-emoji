@@ -31,8 +31,10 @@ Using `ocp-browser` shows the emoji
 # Development 
 
 To generate `emoji.ml`, first update the source html files:
-  - "https://www.unicode.org/emoji/charts/full-emoji-list.html"
-  - "https://www.unicode.org/emoji/charts/full-emoji-modifiers.html"
+```
+$ wget "https://www.unicode.org/emoji/charts/full-emoji-list.html"
+$ wget "https://www.unicode.org/emoji/charts/full-emoji-modifiers.html"
+```
 
 then run:
 ```
