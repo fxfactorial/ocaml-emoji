@@ -14,10 +14,7 @@
   (tags (emoji unicode))
   (depends
     (ocaml (>= "4.04"))
-    (mdx :with-test)
-    (lwt :with-test)
-    (tls-lwt :with-test)
-    (cohttp-lwt-unix :with-test)
-    (lambdasoup :with-test)
-    (uutf :with-test)
+    (mdx :with-dev-setup)
+    (lambdasoup :with-dev-setup)
+    (uutf :with-dev-setup)
   ))
