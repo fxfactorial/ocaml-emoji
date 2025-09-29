@@ -14,7 +14,7 @@
   (tags (emoji unicode))
   (depends
     (ocaml (>= "4.04"))
-    (mdx :with-dev-setup)
+    (mdx :with-test)
     (lambdasoup :with-dev-setup)
     (uutf :with-dev-setup)
   ))
